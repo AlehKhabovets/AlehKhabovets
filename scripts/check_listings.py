@@ -111,6 +111,7 @@ def format_listing(item: dict) -> str:
 
 
 def main() -> None:
+    dry_run = os.environ.get("DRY_RUN", "false").lower() == "true"
     seen = load_seen()
     try:
         listings = fetch_listings()
@@ -120,6 +121,12 @@ def main() -> None:
 
     new_listings = [item for item in listings if item["id"] not in seen]
     print(f"{len(listings)} total, {len(new_listings)} new", file=sys.stderr)
+
+    if dry_run:
+        print("DRY_RUN=true, skipping Telegram send and state update", file=sys.stderr)
+        for item in listings[:10]:
+            print(format_listing(item), file=sys.stderr)
+        return
 
     if new_listings:
         header = f"🏠 Новые объявления на OLX (Варшава, до {PRICE_MAX} zł): {len(new_listings)}"

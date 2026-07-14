@@ -3,7 +3,12 @@ name: Warsaw rent alerts
 on:
   schedule:
     - cron: "0 6 * * *"
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Dry run (skip Telegram, just log what was found)"
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -26,9 +31,11 @@ jobs:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
           PRICE_MAX_PLN: "2500"
+          DRY_RUN: ${{ inputs.dry_run || 'false' }}
         run: python scripts/check_listings.py
 
       - name: Commit updated state
+        if: ${{ inputs.dry_run != true }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
