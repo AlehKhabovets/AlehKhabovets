@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""One-off probe: parse the real homepage HTML for JS bundles, then grep those for API endpoints."""
+"""One-off probe: fully parse the nieruchomosci config XML for server/service/URL tags."""
 import re
 import sys
 import requests
@@ -14,32 +14,22 @@ HEADERS = {
 
 BASE = "https://mapa.um.warszawa.pl"
 
-r = requests.get(BASE + "/", headers=HEADERS, timeout=20)
-print(f"homepage -> {r.status_code}, {len(r.text)} bytes", file=sys.stderr)
+r = requests.get(BASE + "/mapaApp1/mapa?service=nieruchomosci", headers=HEADERS, timeout=20)
 text = r.text
+print(f"config -> {r.status_code}, {len(text)} bytes", file=sys.stderr)
 
-scripts = re.findall(r'<script[^>]*src="([^"]+)"', text)
-print(f"script srcs: {scripts}", file=sys.stderr)
+# find all XML tags whose name suggests a server/service/url/layer definition
+tag_hits = re.findall(r"<([A-Za-z_]*(?:erver|ervice|rl|ayer|WMS|WFS|Feature)[A-Za-z_]*)>([^<]{0,150})</\1>", text)
+print(f"server/service/url/layer-ish tags ({len(tag_hits)}):", file=sys.stderr)
+for name, val in tag_hits[:60]:
+    print(f"  <{name}> = {val}", file=sys.stderr)
 
-links = re.findall(r'href="([^"]*nieruchom[^"]*)"', text, re.IGNORECASE)
-print(f"nieruchomosci-related links: {links}", file=sys.stderr)
+# find any http(s):// URLs embedded anywhere in the XML
+urls = re.findall(r'https?://[^\s"<>]+', text)
+print(f"embedded absolute URLs ({len(urls)}):", file=sys.stderr)
+for u in sorted(set(urls))[:40]:
+    print(f"  {u}", file=sys.stderr)
 
-# also print any onclick / data attrs mentioning nieruchomosci
-mentions = re.findall(r'.{80}nieruchom.{80}', text, re.IGNORECASE)
-print(f"context around 'nieruchom' mentions ({len(mentions)}):", file=sys.stderr)
-for m in mentions[:10]:
-    print(f"  ...{m}...", file=sys.stderr)
-
-for s in scripts:
-    if s.startswith("http") and "googletagmanager" in s:
-        continue
-    url = s if s.startswith("http") else BASE + (s if s.startswith("/") else "/" + s)
-    try:
-        rr = requests.get(url, headers=HEADERS, timeout=20)
-        print(f"  JS {url} -> {rr.status_code}, {len(rr.text)} bytes", file=sys.stderr)
-        hits = re.findall(r'["\'](/[A-Za-z0-9_./?=&%-]{5,100})["\']', rr.text)
-        interesting = [h for h in hits if any(k in h.lower() for k in ["serwer", "servlet", "wfs", "wms", "getfeature", "dane", "api", "nieruch", "mapaapp"])]
-        if interesting:
-            print(f"    interesting: {sorted(set(interesting))[:40]}", file=sys.stderr)
-    except requests.RequestException as exc:
-        print(f"  JS {url} -> ERROR {exc}", file=sys.stderr)
+# find any .aspx/.ashx/.do/.jsp/servlet-like tokens
+endpointish = re.findall(r'[A-Za-z0-9_./-]+\.(?:aspx|ashx|do|jsp|cgi)\b', text)
+print(f"endpoint-like tokens: {sorted(set(endpointish))[:40]}", file=sys.stderr)
