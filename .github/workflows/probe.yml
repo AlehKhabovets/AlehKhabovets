@@ -11,6 +11,5 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - run: pip install playwright
-      - run: playwright install --with-deps chromium
-      - run: python scripts/probe_network.py
+      - run: pip install requests
+      - run: python scripts/probe_oferty.py
