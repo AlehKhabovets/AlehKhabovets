@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""One-off probe: check whether tender aggregators cover rentals (najem) vs sales (sprzedaz)."""
-import re
+"""One-off probe: check BIP (Biuletyn Informacji Publicznej) reachability."""
 import sys
 import requests
 
@@ -13,26 +12,18 @@ HEADERS = {
 }
 
 URLS = [
-    "https://listaprzetargow.pl/oferty/warszawa",
-    "https://przetargi.adradar.pl/p/mieszkania/55060/Warszawa/a",
+    "https://bip.warszawa.pl/",
+    "https://warszawa19115.pl/en/-/lokal-za-remont",
+    "https://warszawa19115.pl/en/-/najem-lokalu-mieszkalnego-z-zasobu-miasta-",
 ]
 
-
-def count_ci(text: str, word: str) -> int:
-    return len(re.findall(word, text, re.IGNORECASE))
-
-
 for url in URLS:
-    resp = requests.get(url, headers=HEADERS, timeout=20)
-    text = resp.text
-    print(f"=== {url} -> HTTP {resp.status_code} ===", file=sys.stderr)
-    print(f"  'najem' count: {count_ci(text, 'najem')}", file=sys.stderr)
-    print(f"  'sprzedaż/sprzedaz' count: {count_ci(text, 'sprzeda')}", file=sys.stderr)
-    print(f"  'wynajem' count: {count_ci(text, 'wynaj')}", file=sys.stderr)
-    print(f"  'remont' count: {count_ci(text, 'remont')}", file=sys.stderr)
-    # show a few lines around each 'najem' occurrence for context
-    for m in list(re.finditer("najem", text, re.IGNORECASE))[:5]:
-        start = max(0, m.start() - 100)
-        end = min(len(text), m.end() + 100)
-        snippet = re.sub(r"\s+", " ", text[start:end])
-        print(f"  ...{snippet}...", file=sys.stderr)
+    try:
+        resp = requests.get(url, headers=HEADERS, timeout=20)
+        print(f"{url} -> HTTP {resp.status_code}, length {len(resp.text)}", file=sys.stderr)
+        if resp.status_code == 200:
+            text = resp.text
+            for kw in ["adres", "ul.", "m2", "m²", "zł", "przetarg", "ogłoszenie"]:
+                print(f"  '{kw}' count: {text.lower().count(kw.lower())}", file=sys.stderr)
+    except requests.RequestException as exc:
+        print(f"{url} -> ERROR: {exc}", file=sys.stderr)
