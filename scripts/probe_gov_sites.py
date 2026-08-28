@@ -12,12 +12,12 @@ HEADERS = {
 }
 
 URLS = [
-    "https://mieszkania.um.warszawa.pl/",
-    "https://mieszkania.um.warszawa.pl/chcesz-wynajac-lokal",
-    "https://um.warszawa.pl/-/domy-komunalne",
-    "https://wola.um.warszawa.pl/waw/zgn-wola/lokale-mieszkalne",
-    "https://warszawa19115.pl/en/-/najem-komunalnego-lokalu-uzytkowego-w-przetargu",
-    "https://srodmiescie.um.warszawa.pl/waw/zgn-srodmiescie/zamowienie",
+    "https://warszawa19115.pl/en/-/lokal-za-remont",
+    "https://listaprzetargow.pl/oferty/warszawa",
+    "https://www.oferent.com.pl/przetargi/warszawa/",
+    "https://przetargi.adradar.pl/p/mieszkania/55060/Warszawa/a",
+    "https://e-przetargi.pl/zamowienia-publiczne/przetarg/1406/najem-lokalu-mieszkalnego-w-warszawie",
+    "https://www.przetargi.egospodarka.pl/",
 ]
 
 for url in URLS:
