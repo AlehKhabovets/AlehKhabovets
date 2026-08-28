@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""One-off probe: check reachability and structure of Warsaw municipal housing sites."""
+"""One-off probe: check whether tender aggregators cover rentals (najem) vs sales (sprzedaz)."""
+import re
 import sys
 import requests
 
@@ -12,20 +13,26 @@ HEADERS = {
 }
 
 URLS = [
-    "https://warszawa19115.pl/en/-/lokal-za-remont",
     "https://listaprzetargow.pl/oferty/warszawa",
-    "https://www.oferent.com.pl/przetargi/warszawa/",
     "https://przetargi.adradar.pl/p/mieszkania/55060/Warszawa/a",
-    "https://e-przetargi.pl/zamowienia-publiczne/przetarg/1406/najem-lokalu-mieszkalnego-w-warszawie",
-    "https://www.przetargi.egospodarka.pl/",
 ]
 
+
+def count_ci(text: str, word: str) -> int:
+    return len(re.findall(word, text, re.IGNORECASE))
+
+
 for url in URLS:
-    try:
-        resp = requests.get(url, headers=HEADERS, timeout=20)
-        print(f"{url} -> HTTP {resp.status_code}, length {len(resp.text)}", file=sys.stderr)
-        if resp.status_code == 200:
-            snippet = resp.text[:300].replace("\n", " ")
-            print(f"  snippet: {snippet}", file=sys.stderr)
-    except requests.RequestException as exc:
-        print(f"{url} -> ERROR: {exc}", file=sys.stderr)
+    resp = requests.get(url, headers=HEADERS, timeout=20)
+    text = resp.text
+    print(f"=== {url} -> HTTP {resp.status_code} ===", file=sys.stderr)
+    print(f"  'najem' count: {count_ci(text, 'najem')}", file=sys.stderr)
+    print(f"  'sprzedaż/sprzedaz' count: {count_ci(text, 'sprzeda')}", file=sys.stderr)
+    print(f"  'wynajem' count: {count_ci(text, 'wynaj')}", file=sys.stderr)
+    print(f"  'remont' count: {count_ci(text, 'remont')}", file=sys.stderr)
+    # show a few lines around each 'najem' occurrence for context
+    for m in list(re.finditer("najem", text, re.IGNORECASE))[:5]:
+        start = max(0, m.start() - 100)
+        end = min(len(text), m.end() + 100)
+        snippet = re.sub(r"\s+", " ", text[start:end])
+        print(f"  ...{snippet}...", file=sys.stderr)
