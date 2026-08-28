@@ -27,6 +27,7 @@ jobs:
         run: pip install -r scripts/requirements.txt
 
       - name: Check OLX listings and notify
+        continue-on-error: true
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
@@ -35,6 +36,7 @@ jobs:
         run: python scripts/check_listings.py
 
       - name: Check city commercial premises offers and notify
+        continue-on-error: true
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
