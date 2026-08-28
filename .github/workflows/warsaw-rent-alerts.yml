@@ -34,11 +34,18 @@ jobs:
           DRY_RUN: ${{ inputs.dry_run || 'false' }}
         run: python scripts/check_listings.py
 
+      - name: Check city commercial premises offers and notify
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          DRY_RUN: ${{ inputs.dry_run || 'false' }}
+        run: python scripts/check_commercial_listings.py
+
       - name: Commit updated state
         if: ${{ inputs.dry_run != true }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add data/seen_listings.json
+          git add data/seen_listings.json data/seen_commercial.json
           git diff --cached --quiet || git commit -m "Update seen listings state"
           git push
