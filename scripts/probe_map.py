@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""One-off probe: find the backend data endpoint behind mapa.um.warszawa.pl's nieruchomosci layer."""
+"""One-off probe: check the real mapa.um.warszawa.pl app page and tech stack for the nieruchomosci layer."""
 import re
 import sys
 import requests
@@ -14,28 +14,24 @@ HEADERS = {
 
 BASE = "https://mapa.um.warszawa.pl"
 
-resp = requests.get(f"{BASE}/mapaApp1/mapa?service=nieruchomosci", headers=HEADERS, timeout=20)
-print(f"config page -> {resp.status_code}, {len(resp.text)} bytes", file=sys.stderr)
-full_text = resp.text
+CANDIDATES = [
+    "/mapaApp1/",
+    "/mapaApp1/index.html",
+    "/mapaApp1/mapa",
+    "/mapaApp1/mapa.html",
+]
 
-# find script src references
-scripts = re.findall(r'src="([^"]+\.js[^"]*)"', full_text)
-print(f"script refs: {scripts}", file=sys.stderr)
-
-for s in scripts:
-    url = s if s.startswith("http") else BASE + (s if s.startswith("/") else "/" + s)
+for path in CANDIDATES:
+    url = BASE + path
     try:
         r = requests.get(url, headers=HEADERS, timeout=20)
-        print(f"  JS {url} -> {r.status_code}, {len(r.text)} bytes", file=sys.stderr)
-        # look for endpoint-like strings
-        hits = re.findall(r'["\'](/[A-Za-z0-9_./?=&%-]{5,80})["\']', r.text)
-        interesting = [h for h in hits if any(k in h.lower() for k in ["serwer", "servlet", "wfs", "wms", "getfeature", "dane", "api", "json", "nieruch"])]
-        if interesting:
-            print(f"    interesting paths: {sorted(set(interesting))[:30]}", file=sys.stderr)
+        print(f"{url} -> {r.status_code}, {len(r.text)} bytes", file=sys.stderr)
+        if r.status_code == 200:
+            text = r.text
+            has_swf = ".swf" in text.lower()
+            print(f"  contains .swf reference: {has_swf}", file=sys.stderr)
+            scripts = re.findall(r'src="([^"]+)"', text)
+            print(f"  src refs: {scripts[:20]}", file=sys.stderr)
+            print(f"  snippet: {text[:600]}", file=sys.stderr)
     except requests.RequestException as exc:
-        print(f"  JS {url} -> ERROR {exc}", file=sys.stderr)
-
-# also grep the config page itself for endpoint hints
-hits2 = re.findall(r'["\'](/[A-Za-z0-9_./?=&%-]{5,80})["\']', full_text)
-interesting2 = [h for h in hits2 if any(k in h.lower() for k in ["serwer", "servlet", "wfs", "wms", "getfeature", "dane", "api", "json"])]
-print(f"config-page interesting paths: {sorted(set(interesting2))[:30]}", file=sys.stderr)
+        print(f"{url} -> ERROR {exc}", file=sys.stderr)
