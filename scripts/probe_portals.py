@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-"""One-off probe: which Polish rental portals are reachable from GitHub Actions
-for the original search — Warsaw apartments for rent, up to 2500 PLN/month."""
+"""One-off probe: inspect Otodom's embedded __NEXT_DATA__ JSON to locate the listings array."""
+import json
 import re
 import sys
 
@@ -12,27 +12,43 @@ HEADERS = {
         "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
     ),
     "Accept-Language": "pl-PL,pl;q=0.9,en;q=0.8",
-    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
 }
 
-PORTALS = {
-    "otodom": "https://www.otodom.pl/pl/wyniki/wynajem/mieszkanie/mazowieckie/warszawa/warszawa/warszawa?priceMax=2500",
-    "gratka": "https://gratka.pl/nieruchomosci/mieszkania/warszawa/wynajem?cena-do=2500",
-    "morizon": "https://www.morizon.pl/do-wynajecia/mieszkania/warszawa/?ps%5Bprice_to%5D=2500",
-    "domiporta": "https://www.domiporta.pl/mieszkanie/wynajme/mazowieckie/warszawa?Price.To=2500",
-    "nieruchomosci-online": "https://warszawa.nieruchomosci-online.pl/szukaj.html?3,mieszkanie,wynajem,,Warszawa,,,,,,,,,,,,,2500",
-    "olx (dla porównania)": "https://www.olx.pl/nieruchomosci/mieszkania/wynajem/warszawa/?search%5Bfilter_float_price:to%5D=2500",
-}
+URL = (
+    "https://www.otodom.pl/pl/wyniki/wynajem/mieszkanie/mazowieckie/warszawa/warszawa/warszawa"
+    "?priceMax=2500&limit=36"
+)
 
-for name, url in PORTALS.items():
-    try:
-        resp = requests.get(url, headers=HEADERS, timeout=30)
-        text = resp.text
-        print(f"=== {name} -> HTTP {resp.status_code}, {len(text)} bytes ===", file=sys.stderr)
-        if resp.status_code == 200:
-            # crude signal that real listings are present: count PLN price mentions
-            prices = re.findall(r"\d[\d\s ]{2,6}\s*zł", text)
-            print(f"    price-like matches: {len(prices)}; sample: {prices[:8]}", file=sys.stderr)
-            print(f"    mentions 'wynaj': {text.lower().count('wynaj')}", file=sys.stderr)
-    except requests.RequestException as exc:
-        print(f"=== {name} -> ERROR: {exc}", file=sys.stderr)
+resp = requests.get(URL, headers=HEADERS, timeout=30)
+print(f"HTTP {resp.status_code}, {len(resp.text)} bytes", file=sys.stderr)
+
+m = re.search(r'<script id="__NEXT_DATA__"[^>]*>(.*?)</script>', resp.text, re.DOTALL)
+if not m:
+    print("__NEXT_DATA__ not found", file=sys.stderr)
+    sys.exit(0)
+
+data = json.loads(m.group(1))
+print(f"top-level keys: {list(data.keys())}", file=sys.stderr)
+
+props = data.get("props", {}).get("pageProps", {})
+print(f"pageProps keys: {list(props.keys())}", file=sys.stderr)
+
+# Hunt for the array of listings anywhere in pageProps
+def walk(node, path="", depth=0):
+    if depth > 6:
+        return
+    if isinstance(node, dict):
+        if "items" in node and isinstance(node["items"], list) and node["items"]:
+            first = node["items"][0]
+            if isinstance(first, dict):
+                print(f"  ARRAY at {path}.items ({len(node['items'])} items)", file=sys.stderr)
+                print(f"    item keys: {list(first.keys())}", file=sys.stderr)
+                print(f"    sample: {json.dumps(first, ensure_ascii=False)[:900]}", file=sys.stderr)
+        for k, v in node.items():
+            walk(v, f"{path}.{k}", depth + 1)
+    elif isinstance(node, list) and node and isinstance(node[0], dict):
+        keys = set(node[0].keys())
+        if {"title", "id"} <= keys or {"slug"} <= keys:
+            print(f"  LIST at {path} ({len(node)}) item keys: {list(node[0].keys())}", file=sys.stderr)
+
+walk(props, "pageProps")
