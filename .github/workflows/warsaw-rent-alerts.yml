@@ -26,14 +26,17 @@ jobs:
       - name: Install dependencies
         run: pip install -r scripts/requirements.txt
 
-      - name: Check OLX listings and notify
+      # OLX (scripts/check_listings.py) is kept in the repo but not scheduled:
+      # since 2026-08-22 it answers 403 to automated requests. Otodom carries
+      # the same Warsaw rental listings and stays reachable.
+      - name: Check Otodom flat rentals and notify
         continue-on-error: true
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
           PRICE_MAX_PLN: "2500"
           DRY_RUN: ${{ inputs.dry_run || 'false' }}
-        run: python scripts/check_listings.py
+        run: python scripts/check_otodom_listings.py
 
       - name: Check city commercial premises offers and notify
         continue-on-error: true
@@ -48,6 +51,6 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add data/seen_listings.json data/seen_commercial.json
+          git add data/seen_otodom.json data/seen_commercial.json
           git diff --cached --quiet || git commit -m "Update seen listings state"
           git push
