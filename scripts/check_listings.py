@@ -9,6 +9,8 @@ from pathlib import Path
 import requests
 from bs4 import BeautifulSoup
 
+from telegram_utils import send_digest
+
 OLX_URL = "https://www.olx.pl/nieruchomosci/mieszkania/wynajem/warszawa/"
 PRICE_MAX = int(os.environ.get("PRICE_MAX_PLN", "2500"))
 STATE_PATH = Path(__file__).resolve().parent.parent / "data" / "seen_listings.json"
@@ -84,23 +86,6 @@ def fetch_listings():
     return listings
 
 
-def send_telegram_message(text: str) -> None:
-    token = os.environ["TELEGRAM_BOT_TOKEN"]
-    chat_id = os.environ["TELEGRAM_CHAT_ID"]
-    resp = requests.post(
-        f"https://api.telegram.org/bot{token}/sendMessage",
-        json={
-            "chat_id": chat_id,
-            "text": text,
-            "parse_mode": "HTML",
-            "disable_web_page_preview": False,
-        },
-        timeout=15,
-    )
-    print(f"Telegram response status: {resp.status_code}: {resp.text}", file=sys.stderr)
-    resp.raise_for_status()
-
-
 def format_listing(item: dict) -> str:
     price = f"{item['price']} zł" if item["price"] is not None else "цена не указана"
     lines = [f"<b>{item['title']}</b>", price]
@@ -130,9 +115,7 @@ def main() -> None:
 
     if new_listings:
         header = f"🏠 Новые объявления на OLX (Варшава, до {PRICE_MAX} zł): {len(new_listings)}"
-        send_telegram_message(header)
-        for item in new_listings:
-            send_telegram_message(format_listing(item))
+        send_digest(header, [format_listing(item) for item in new_listings])
     else:
         print("No new listings, nothing to send", file=sys.stderr)
 
