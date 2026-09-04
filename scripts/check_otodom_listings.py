@@ -55,12 +55,38 @@ def extract_price(raw) -> int | None:
     return None
 
 
+ROOMS_BY_NAME = {
+    "ONE": "1",
+    "TWO": "2",
+    "THREE": "3",
+    "FOUR": "4",
+    "FIVE": "5",
+    "SIX": "6",
+    "SEVEN": "7",
+    "EIGHT": "8",
+    "NINE": "9",
+    "TEN": "10",
+    "MORE": "10+",
+}
+
+
 def build_url(item: dict) -> str:
     href = item.get("href")
     if href:
+        # href carries a "[lang]" placeholder that the site fills in client-side.
+        href = href.replace("[lang]", "/pl")
         return href if href.startswith("http") else "https://www.otodom.pl" + href
     slug = item.get("slug")
     return f"https://www.otodom.pl/pl/oferta/{slug}" if slug else "https://www.otodom.pl/"
+
+
+def describe_rooms(raw) -> str | None:
+    """roomsNumber arrives as an enum name ("ONE", "TWO"), not a digit."""
+    if raw is None:
+        return None
+    if isinstance(raw, int):
+        return str(raw)
+    return ROOMS_BY_NAME.get(str(raw).upper(), str(raw))
 
 
 def describe_location(item: dict) -> str:
@@ -110,7 +136,7 @@ def fetch_listings():
                 "title": item.get("title") or "Без названия",
                 "price": price,
                 "area": item.get("areaInSquareMeters"),
-                "rooms": item.get("roomsNumber"),
+                "rooms": describe_rooms(item.get("roomsNumber")),
                 "location": describe_location(item),
                 "private_owner": bool(item.get("isPrivateOwner")),
                 "url": build_url(item),
